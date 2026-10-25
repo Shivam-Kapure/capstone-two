@@ -47,6 +47,37 @@ All files created in `D:\claude-two` (see structure in the final report).
 - Built-in browser at the tunnel URL: form submit → payment #5 "Cluster Browser → Bakery", still present after page reload; badge healthy.
 - Default kubectl context still `minikube`.
 
+## Phase 5a — Git (run by user, verified read-only) — PASS
+- Remote `origin` = `https://github.com/Shivam-Kapure/capstone-two.git`.
+- `git log --oneline --graph --all --decorate` → `8c002c3 (HEAD -> main, tag: v1.0.0-final, origin/release-v1.0, origin/main, release-v1.0)
+  chore: finalize release v1.0` on top of `bd1af88 feat: payment and notification engine ...` (fast-forward merge, linear).
+- `git branch -a -vv` → main tracks origin/main; release-v1.0 and origin/release-v1.0 at 8c002c3.
+- `git tag -n` → `v1.0.0-final    Final Capstone Release`; `git cat-file -t v1.0.0-final` → `tag` (annotated).
+- `git ls-remote --heads --tags origin` → heads main and release-v1.0 at 8c002c3; tag object 81e0a4f peeling to 8c002c3; exit 0.
+- `git status` → clean, up to date with origin/main. 25 tracked files (24 + version.txt = `v1.0-prod-bundle`);
+  no capstone.env, tfstate, .terraform/ or .venv/ tracked.
+
+## Phase 5b — Jenkins `capstone-two-pipeline` build #1 (created and triggered by user) — PASS
+Read from `C:\ProgramData\Jenkins\.jenkins\jobs\capstone-two-pipeline\builds\1\log`:
+- Checkout SCM: revision `8c002c3` (refs/remotes/origin/main), "chore: finalize release v1.0".
+- Build & Test: venv + pip install + pytest, each line with `|| exit /b 1` → `collected 9 items`, **`9 passed`**, then
+  `Building Payment and Notification Services... Test PASSED`.
+- Docker Packaging: `docker build -t payment-engine:capstone-two .`, `payment-backend:capstone-two backend`,
+  `payment-frontend:capstone-two frontend`; inspect printed `Image [payment-engine:capstone-two] sha256:64f86cdf…`,
+  `Image [payment-backend:capstone-two] sha256:02c26777…`, `Image [payment-frontend:capstone-two] sha256:af9af17a…`.
+- Deploy Cluster: `Applying Kubernetes Deployment manifests to cluster...`.
+- Post: `if exist .ci-venv rmdir /s /q .ci-venv` (workspace has no .ci-venv afterwards). **`Finished: SUCCESS`**.
+
+## Phase 5c — Jira — PASS (user-reported)
+- User reported: sprint with the 3 tasks completed, all moved to Done after evidence was verified, burndown/sprint report screenshot taken.
+  Not observable from this machine.
+
+## Phase 6 — final report — PASS
+- Re-checked before writing: root Dockerfile byte-exact (52 bytes); Jenkinsfile 3 stages, 0 `sh`; manifest 4 resources;
+  1 Terraform resource, `plan -detailed-exitcode` exit 0; Compose both healthy, `/health` 200; `payment-live-two` Exited (0);
+  k8s 2/2 + 1/1 Running; tunnel 127.0.0.1:63152 `/health` 200; default context still `minikube`.
+- Report: [FINAL_REPORT.md](FINAL_REPORT.md).
+
 ## Phase 4 — Terraform & Ansible — PASS
 Terraform v1.16.6 (already installed via winget, on PATH):
 - `terraform fmt -check` → exit 0; `init` → installed hashicorp/local v2.9.1, exit 0; `validate` → "The configuration is valid.", exit 0.
