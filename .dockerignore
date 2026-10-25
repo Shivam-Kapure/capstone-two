@@ -1,0 +1,3 @@
+# The root image needs only its Dockerfile; keep everything else out of the build context.
+*
+!Dockerfile

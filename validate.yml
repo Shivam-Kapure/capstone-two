@@ -1,0 +1,93 @@
+---
+# Validates the Terraform-generated capstone.env and the running app's HTTP endpoints.
+# Default app_url is the Docker Compose frontend, which WSL can reach through Docker Desktop's
+# published port. Override with: -e app_url=http://...
+- name: Validate capstone deployment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    app_url: http://localhost:38180
+    env_file: "{{ playbook_dir }}/capstone.env"
+
+  tasks:
+    - name: Check that capstone.env exists
+      ansible.builtin.stat:
+        path: "{{ env_file }}"
+      register: env_stat
+
+    - name: Fail if capstone.env is missing
+      ansible.builtin.assert:
+        that:
+          - env_stat.stat.exists
+        fail_msg: "{{ env_file }} not found - run 'terraform apply' first."
+        success_msg: "{{ env_file }} exists."
+
+    - name: Read capstone.env
+      ansible.builtin.slurp:
+        src: "{{ env_file }}"
+      register: env_raw
+
+    - name: Start with an empty settings map
+      ansible.builtin.set_fact:
+        capstone_env: {}
+
+    - name: Parse KEY=VALUE lines
+      ansible.builtin.set_fact:
+        capstone_env: "{{ capstone_env | combine({item.split('=', 1)[0]: item.split('=', 1)[1]}) }}"
+      loop: "{{ (env_raw.content | b64decode).splitlines() | map('trim') | select('match', '^[A-Za-z_][A-Za-z0-9_]*=') | list }}"
+
+    - name: Assert PAYMENT_GATEWAY_URL is a non-empty http(s) URL
+      ansible.builtin.assert:
+        that:
+          - capstone_env.PAYMENT_GATEWAY_URL is defined
+          - capstone_env.PAYMENT_GATEWAY_URL | length > 0
+          - capstone_env.PAYMENT_GATEWAY_URL is match('^https?://[^ ]+$')
+        fail_msg: "PAYMENT_GATEWAY_URL is missing or not an http(s) URL: '{{ capstone_env.PAYMENT_GATEWAY_URL | default('<unset>') }}'"
+        success_msg: "PAYMENT_GATEWAY_URL = {{ capstone_env.PAYMENT_GATEWAY_URL }}"
+
+    - name: Assert STATUS is DEPLOYED
+      ansible.builtin.assert:
+        that:
+          - capstone_env.STATUS | default('') == 'DEPLOYED'
+        fail_msg: "STATUS must be DEPLOYED, got '{{ capstone_env.STATUS | default('<unset>') }}'"
+        success_msg: "STATUS = DEPLOYED"
+
+    - name: GET /health
+      ansible.builtin.uri:
+        url: "{{ app_url }}/health"
+        return_content: true
+        status_code: 200
+        timeout: 10
+      register: health
+
+    - name: Assert backend reports healthy
+      ansible.builtin.assert:
+        that:
+          - "'healthy' in health.content"
+        fail_msg: "{{ app_url }}/health did not report healthy: {{ health.content }}"
+        success_msg: "{{ app_url }}/health is healthy"
+
+    - name: GET /api/payments
+      ansible.builtin.uri:
+        url: "{{ app_url }}/api/payments"
+        return_content: true
+        status_code: 200
+        timeout: 10
+      register: payments
+
+    - name: Assert payments list is non-empty
+      ansible.builtin.assert:
+        that:
+          - payments.json is sequence
+          - payments.json | length > 0
+        fail_msg: "{{ app_url }}/api/payments returned no payments."
+        success_msg: "{{ app_url }}/api/payments returned {{ payments.json | length }} payments"
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg:
+          - "capstone.env: PAYMENT_GATEWAY_URL={{ capstone_env.PAYMENT_GATEWAY_URL }} STATUS={{ capstone_env.STATUS }}"
+          - "App URL checked: {{ app_url }}"
+          - "Health: {{ health.json.status }} (version {{ health.json.version }})"
+          - "Payments returned: {{ payments.json | length }}"

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Payment Engine</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Payment &amp; Notification Engine</h1>
+    <span id="health" class="badge badge-unknown" role="status">Checking backend…</span>
+  </header>
+
+  <main>
+    <p class="demo-note">Demo data only — payments are kept in memory and no real money moves.</p>
+
+    <section class="stats" aria-label="Summary">
+      <div class="card"><span class="label">Total payments</span><span id="stat-total" class="value">–</span></div>
+      <div class="card"><span class="label">Completed</span><span id="stat-completed" class="value">–</span></div>
+      <div class="card"><span class="label">Pending</span><span id="stat-pending" class="value">–</span></div>
+      <div class="card"><span class="label">Failed</span><span id="stat-failed" class="value">–</span></div>
+    </section>
+
+    <div class="grid">
+      <section class="panel">
+        <h2>New payment</h2>
+        <form id="payment-form" novalidate>
+          <label>Payer <input name="payer" maxlength="60" required></label>
+          <label>Payee <input name="payee" maxlength="60" required></label>
+          <label>Amount <input name="amount" type="number" min="0.01" step="0.01" required></label>
+          <label>Currency
+            <select name="currency">
+              <option>INR</option>
+              <option>USD</option>
+              <option>EUR</option>
+            </select>
+          </label>
+          <button type="submit">Send payment</button>
+          <p id="form-msg" class="form-msg" role="alert"></p>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Notifications</h2>
+        <div id="notifications" class="state">Loading…</div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <h2>Payments</h2>
+      <div id="payments" class="state">Loading…</div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
